@@ -10,16 +10,6 @@ Based on [Sea ORM](https://github.com/SeaQL/sea-orm), The current supported data
 - [Postgres](https://github.com/lib/pq)
 - [SQLite](https://www.sqlite.org)
 
-## Install
-
-Add it to `Cargo.toml`
-
-```toml
-tokio = { version = "1.24.1", features = ["full"] }
-sea-orm = { version = "0.10.6" }
-sea-orm-adapter = { version = "0.1.0", features = ["mysql", "runtime-tokio-rustls"] }
-```
-
 ## Example
 
 ```rust
