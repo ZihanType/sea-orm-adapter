@@ -12,12 +12,14 @@ keywords = ["casbin", "adapter", "sea-orm"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = { version = "0.1.61", default-features = false }
+async-trait = { version = "0.1.64", default-features = false }
 casbin = { version = "2.0.9", default-features = false }
-sea-orm = { version = "0.10.6", default-features = false, features = ["macros"] }
+sea-orm = { version = "0.11.0", default-features = false, features = [
+    "macros",
+] }
 
 [dev-dependencies]
-tokio = { version = "1.24.1", default-features = false, features = ["full"] }
+tokio = { version = "1.25.0", default-features = false, features = ["full"] }
 
 [features]
 default = ["mysql", "runtime-tokio-rustls"]
@@ -29,11 +31,23 @@ sqlite = ["sea-orm/sqlx-sqlite"]
 
 # async runtime
 # async-std
-runtime-async-std-native-tls = ["casbin/runtime-async-std", "sea-orm/runtime-async-std-native-tls"]
-runtime-async-std-rustls = ["casbin/runtime-async-std", "sea-orm/runtime-async-std-rustls"]
+runtime-async-std-native-tls = [
+    "casbin/runtime-async-std",
+    "sea-orm/runtime-async-std-native-tls",
+]
+runtime-async-std-rustls = [
+    "casbin/runtime-async-std",
+    "sea-orm/runtime-async-std-rustls",
+]
 # tokio
-runtime-tokio-native-tls = ["casbin/runtime-tokio", "sea-orm/runtime-tokio-native-tls"]
+runtime-tokio-native-tls = [
+    "casbin/runtime-tokio",
+    "sea-orm/runtime-tokio-native-tls",
+]
 runtime-tokio-rustls = ["casbin/runtime-tokio", "sea-orm/runtime-tokio-rustls"]
 # actix (actually based on tokio)
-runtime-actix-native-tls = ["casbin/runtime-tokio", "sea-orm/runtime-actix-native-tls"]
+runtime-actix-native-tls = [
+    "casbin/runtime-tokio",
+    "sea-orm/runtime-actix-native-tls",
+]
 runtime-actix-rustls = ["casbin/runtime-tokio", "sea-orm/runtime-actix-rustls"]
