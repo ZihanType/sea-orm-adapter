@@ -8,18 +8,19 @@ homepage = "https://github.com/ZihanType/sea-orm-adapter"
 repository = "https://github.com/ZihanType/sea-orm-adapter"
 description = "Sea ORM adapter for casbin-rs"
 keywords = ["casbin", "adapter", "sea-orm"]
+include = ["src/**/*", "Cargo.toml"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = { version = "0.1.64", default-features = false }
-casbin = { version = "2.0.9", default-features = false }
-sea-orm = { version = "0.11.0", default-features = false, features = [
+async-trait = { version = "0.1", default-features = false }
+casbin = { version = "2", default-features = false }
+sea-orm = { version = "0.12.0", default-features = false, features = [
     "macros",
 ] }
 
 [dev-dependencies]
-tokio = { version = "1.25.0", default-features = false, features = ["full"] }
+tokio = { version = "1", default-features = false, features = ["full"] }
 
 [features]
 default = ["mysql", "runtime-tokio-rustls"]

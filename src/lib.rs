@@ -1,3 +1,4 @@
+#[doc = include!("../README.md")]
 mod action;
 mod adapter;
 mod entity;
