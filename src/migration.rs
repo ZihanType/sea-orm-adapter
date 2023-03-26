@@ -22,7 +22,7 @@ pub async fn up<C: ConnectionTrait>(conn: &C) -> Result<ExecResult, DbErr> {
         .table(CasbinRule::Table)
         .col(
             ColumnDef::new(CasbinRule::Id)
-                .unsigned()
+                .integer()
                 .not_null()
                 .auto_increment()
                 .primary_key(),
