@@ -1,10 +1,10 @@
-#[doc = include!("../README.md")]
+#![doc = include_str!("../README.md")]
+
 mod action;
 mod adapter;
-mod entity;
+pub mod entity;
 mod ext;
 mod migration;
 
 pub use adapter::SeaOrmAdapter;
-pub use entity::*;
 pub use migration::{down, up};

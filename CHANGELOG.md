@@ -3,7 +3,10 @@
 ## [0.3.0] 2023-03-26
 
 - Update `sea-orm` to `0.12.0`.
-- fix: pg auto_increment. ([#1](https://github.com/ZihanType/sea-orm-adapter/pull/1))
+- Fix: pg auto_increment. ([#1](https://github.com/ZihanType/sea-orm-adapter/pull/1))
+- Include `README.md` as documentation.
+- Fix: expose mod `entity` instead of items in it.
+- Fix: re-generate `entity` mod when `sea-orm` version changes.
 
 ## [0.2.0] 2023-02-08
 
