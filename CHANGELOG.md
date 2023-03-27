@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.1] 2023-03-27
+
+- Downgrade `sea-orm` to `0.11.2`.
+
 ## [0.3.0] 2023-03-26
 
 - Update `sea-orm` to `0.12.0`.
