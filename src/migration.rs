@@ -1,9 +1,9 @@
 use sea_orm::{
-    sea_query::{self, ColumnDef, Iden, Index, Table},
-    ConnectionTrait, DbErr, ExecResult,
+    sea_query::{ColumnDef, Index, Table},
+    ConnectionTrait, DbErr, DeriveIden, ExecResult,
 };
 
-#[derive(Iden)]
+#[derive(DeriveIden)]
 enum CasbinRule {
     Table,
     Id,
