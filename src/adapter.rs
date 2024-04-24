@@ -38,6 +38,7 @@ impl<C: ConnectionTrait> SeaOrmAdapter<C> {
             v5: "",
         };
 
+        #[allow(clippy::get_first)]
         if let Some(v) = rule.get(0) {
             rule_with_type.v0 = v;
         }
@@ -461,7 +462,7 @@ mod tests {
             .remove_filtered_policy("", "g", 0, to_owned(vec!["carol"]),)
             .await
             .unwrap());
-        assert_eq!(vec![String::new(); 0], e.get_roles_for_user("carol", None));
+        assert_eq!(Vec::<String>::new(), e.get_roles_for_user("carol", None));
 
         // shadow the previous enforcer
         let mut e = Enforcer::new(

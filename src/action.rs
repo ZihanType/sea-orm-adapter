@@ -31,6 +31,7 @@ impl<'a> From<&'a [String]> for Rule<'a> {
             v5: "",
         };
 
+        #[allow(clippy::get_first)]
         if let Some(v) = value.get(0) {
             rule.v0 = v;
         }
