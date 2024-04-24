@@ -91,7 +91,7 @@ impl<C: ConnectionTrait> SeaOrmAdapter<C> {
 
 #[async_trait]
 impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
-    async fn load_policy(&self, m: &mut dyn Model) -> Result<()> {
+    async fn load_policy(&mut self, m: &mut dyn Model) -> Result<()> {
         let rules = action::load_policy(&self.conn).await?;
 
         for rule in &rules {

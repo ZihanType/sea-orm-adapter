@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.3] 2024-04-24
+
+- Fix issue caused by `casbin` breaking semantic version specification.
+
 ## [0.3.2] 2023-07-29
 
 - Update `sea-orm` to `0.12`.
