@@ -9,63 +9,69 @@ use crate::entity::{self, Column, Entity};
 
 #[derive(Debug, Default)]
 pub(crate) struct Rule<'a> {
-    pub v0: &'a str,
-    pub v1: &'a str,
-    pub v2: &'a str,
-    pub v3: &'a str,
-    pub v4: &'a str,
-    pub v5: &'a str,
+    pub(crate) v0: &'a str,
+    pub(crate) v1: &'a str,
+    pub(crate) v2: &'a str,
+    pub(crate) v3: &'a str,
+    pub(crate) v4: &'a str,
+    pub(crate) v5: &'a str,
 }
 
-impl<'a> From<&'a [String]> for Rule<'a> {
-    fn from(value: &'a [String]) -> Self {
-        let mut rule = Rule {
-            v0: "",
-            v1: "",
-            v2: "",
-            v3: "",
-            v4: "",
-            v5: "",
-        };
-
+impl<'a> Rule<'a> {
+    pub(crate) fn from_str(value: &'a [&'a str]) -> Self {
         #[allow(clippy::get_first)]
-        if let Some(v) = value.get(0) {
-            rule.v0 = v;
+        Rule {
+            v0: value.get(0).map_or("", |x| x),
+            v1: value.get(1).map_or("", |x| x),
+            v2: value.get(2).map_or("", |x| x),
+            v3: value.get(3).map_or("", |x| x),
+            v4: value.get(4).map_or("", |x| x),
+            v5: value.get(5).map_or("", |x| x),
         }
-        if let Some(v) = value.get(1) {
-            rule.v1 = v;
+    }
+
+    pub(crate) fn from_string(value: &'a [String]) -> Self {
+        #[allow(clippy::get_first)]
+        Rule {
+            v0: value.get(0).map_or("", |x| x),
+            v1: value.get(1).map_or("", |x| x),
+            v2: value.get(2).map_or("", |x| x),
+            v3: value.get(3).map_or("", |x| x),
+            v4: value.get(4).map_or("", |x| x),
+            v5: value.get(5).map_or("", |x| x),
         }
-        if let Some(v) = value.get(2) {
-            rule.v2 = v;
-        }
-        if let Some(v) = value.get(3) {
-            rule.v3 = v;
-        }
-        if let Some(v) = value.get(4) {
-            rule.v4 = v;
-        }
-        if let Some(v) = value.get(5) {
-            rule.v5 = v;
-        }
-        rule
     }
 }
 
 #[derive(Debug, Default)]
 pub(crate) struct RuleWithType<'a> {
-    pub ptype: &'a str,
-    pub v0: &'a str,
-    pub v1: &'a str,
-    pub v2: &'a str,
-    pub v3: &'a str,
-    pub v4: &'a str,
-    pub v5: &'a str,
+    pub(crate) ptype: &'a str,
+    pub(crate) v0: &'a str,
+    pub(crate) v1: &'a str,
+    pub(crate) v2: &'a str,
+    pub(crate) v3: &'a str,
+    pub(crate) v4: &'a str,
+    pub(crate) v5: &'a str,
+}
+
+impl<'a> RuleWithType<'a> {
+    pub(crate) fn from_rule(ptype: &'a str, rule: Rule<'a>) -> Self {
+        RuleWithType {
+            ptype,
+            v0: rule.v0,
+            v1: rule.v1,
+            v2: rule.v2,
+            v3: rule.v3,
+            v4: rule.v4,
+            v5: rule.v5,
+        }
+    }
 }
 
 pub(crate) async fn remove_policy<'conn, 'rule, C: ConnectionTrait>(
     conn: &'conn C,
     ptype: &'rule str,
-    rule: &'rule Rule<'rule>,
+    rule: Rule<'rule>,
 ) -> Result<bool> {
     Entity::delete_many()
         .filter(Column::Ptype.eq(ptype))
@@ -84,7 +90,7 @@ pub(crate) async fn remove_policy<'conn, 'rule, C: ConnectionTrait>(
 pub(crate) async fn remove_policies<'conn, 'rule, C: ConnectionTrait>(
     conn: &'conn C,
     ptype: &'rule str,
-    rules: &'rule [Rule<'rule>],
+    rules: Vec<Rule<'rule>>,
 ) -> Result<bool> {
     for rule in rules {
         remove_policy(conn, ptype, rule).await?;
@@ -96,42 +102,42 @@ pub(crate) async fn remove_filtered_policy<'conn, 'rule, C: ConnectionTrait>(
     conn: &'conn C,
     ptype: &'rule str,
     index_of_match_start: usize,
-    rule: &'rule [&'rule str; 6],
+    rule: Rule<'rule>,
 ) -> Result<bool> {
     let mut conditions = Condition::all().add(Column::Ptype.eq(ptype));
 
     if index_of_match_start == 0 {
         conditions = conditions
-            .add_option((!rule[0].is_empty()).then(|| Column::V0.eq(rule[0])))
-            .add_option((!rule[1].is_empty()).then(|| Column::V1.eq(rule[1])))
-            .add_option((!rule[2].is_empty()).then(|| Column::V2.eq(rule[2])))
-            .add_option((!rule[3].is_empty()).then(|| Column::V3.eq(rule[3])))
-            .add_option((!rule[4].is_empty()).then(|| Column::V4.eq(rule[4])))
-            .add_option((!rule[5].is_empty()).then(|| Column::V5.eq(rule[5])));
+            .add_option((!rule.v0.is_empty()).then(|| Column::V0.eq(rule.v0)))
+            .add_option((!rule.v1.is_empty()).then(|| Column::V1.eq(rule.v1)))
+            .add_option((!rule.v2.is_empty()).then(|| Column::V2.eq(rule.v2)))
+            .add_option((!rule.v3.is_empty()).then(|| Column::V3.eq(rule.v3)))
+            .add_option((!rule.v4.is_empty()).then(|| Column::V4.eq(rule.v4)))
+            .add_option((!rule.v5.is_empty()).then(|| Column::V5.eq(rule.v5)));
     } else if index_of_match_start == 1 {
         conditions = conditions
-            .add_option((!rule[0].is_empty()).then(|| Column::V1.eq(rule[0])))
-            .add_option((!rule[1].is_empty()).then(|| Column::V2.eq(rule[1])))
-            .add_option((!rule[2].is_empty()).then(|| Column::V3.eq(rule[2])))
-            .add_option((!rule[3].is_empty()).then(|| Column::V4.eq(rule[3])))
-            .add_option((!rule[4].is_empty()).then(|| Column::V5.eq(rule[4])));
+            .add_option((!rule.v0.is_empty()).then(|| Column::V1.eq(rule.v0)))
+            .add_option((!rule.v1.is_empty()).then(|| Column::V2.eq(rule.v1)))
+            .add_option((!rule.v2.is_empty()).then(|| Column::V3.eq(rule.v2)))
+            .add_option((!rule.v3.is_empty()).then(|| Column::V4.eq(rule.v3)))
+            .add_option((!rule.v4.is_empty()).then(|| Column::V5.eq(rule.v4)));
     } else if index_of_match_start == 2 {
         conditions = conditions
-            .add_option((!rule[0].is_empty()).then(|| Column::V2.eq(rule[0])))
-            .add_option((!rule[1].is_empty()).then(|| Column::V3.eq(rule[1])))
-            .add_option((!rule[2].is_empty()).then(|| Column::V4.eq(rule[2])))
-            .add_option((!rule[3].is_empty()).then(|| Column::V5.eq(rule[3])));
+            .add_option((!rule.v0.is_empty()).then(|| Column::V2.eq(rule.v0)))
+            .add_option((!rule.v1.is_empty()).then(|| Column::V3.eq(rule.v1)))
+            .add_option((!rule.v2.is_empty()).then(|| Column::V4.eq(rule.v2)))
+            .add_option((!rule.v3.is_empty()).then(|| Column::V5.eq(rule.v3)));
     } else if index_of_match_start == 3 {
         conditions = conditions
-            .add_option((!rule[0].is_empty()).then(|| Column::V3.eq(rule[0])))
-            .add_option((!rule[1].is_empty()).then(|| Column::V4.eq(rule[1])))
-            .add_option((!rule[2].is_empty()).then(|| Column::V5.eq(rule[2])));
+            .add_option((!rule.v0.is_empty()).then(|| Column::V3.eq(rule.v0)))
+            .add_option((!rule.v1.is_empty()).then(|| Column::V4.eq(rule.v1)))
+            .add_option((!rule.v2.is_empty()).then(|| Column::V5.eq(rule.v2)));
     } else if index_of_match_start == 4 {
         conditions = conditions
-            .add_option((!rule[0].is_empty()).then(|| Column::V4.eq(rule[0])))
-            .add_option((!rule[1].is_empty()).then(|| Column::V5.eq(rule[1])));
+            .add_option((!rule.v0.is_empty()).then(|| Column::V4.eq(rule.v0)))
+            .add_option((!rule.v1.is_empty()).then(|| Column::V5.eq(rule.v1)));
     } else {
-        conditions = conditions.add_option((!rule[0].is_empty()).then(|| Column::V5.eq(rule[0])));
+        conditions = conditions.add_option((!rule.v0.is_empty()).then(|| Column::V5.eq(rule.v0)));
     }
 
     Entity::delete_many()
@@ -153,7 +159,8 @@ pub(crate) async fn load_filtered_policy<'conn, 'filter, C: ConnectionTrait>(
     conn: &'conn C,
     filter: &'filter Filter<'filter>,
 ) -> Result<Vec<entity::Model>> {
-    let (g_filter, p_filter) = filtered_where_values(filter);
+    let g_filter = Rule::from_str(&filter.g);
+    let p_filter = Rule::from_str(&filter.p);
 
     entity::Entity::find()
         .filter(
@@ -161,22 +168,22 @@ pub(crate) async fn load_filtered_policy<'conn, 'filter, C: ConnectionTrait>(
                 .add(
                     Condition::all()
                         .add(Column::Ptype.starts_with("g"))
-                        .add_option((!g_filter[0].is_empty()).then(|| Column::V0.eq(g_filter[0])))
-                        .add_option((!g_filter[1].is_empty()).then(|| Column::V1.eq(g_filter[1])))
-                        .add_option((!g_filter[2].is_empty()).then(|| Column::V2.eq(g_filter[2])))
-                        .add_option((!g_filter[3].is_empty()).then(|| Column::V3.eq(g_filter[3])))
-                        .add_option((!g_filter[4].is_empty()).then(|| Column::V4.eq(g_filter[4])))
-                        .add_option((!g_filter[5].is_empty()).then(|| Column::V5.eq(g_filter[5]))),
+                        .add_option((!g_filter.v0.is_empty()).then(|| Column::V0.eq(g_filter.v0)))
+                        .add_option((!g_filter.v1.is_empty()).then(|| Column::V1.eq(g_filter.v1)))
+                        .add_option((!g_filter.v2.is_empty()).then(|| Column::V2.eq(g_filter.v2)))
+                        .add_option((!g_filter.v3.is_empty()).then(|| Column::V3.eq(g_filter.v3)))
+                        .add_option((!g_filter.v4.is_empty()).then(|| Column::V4.eq(g_filter.v4)))
+                        .add_option((!g_filter.v5.is_empty()).then(|| Column::V5.eq(g_filter.v5))),
                 )
                 .add(
                     Condition::all()
                         .add(Column::Ptype.starts_with("p"))
-                        .add_option((!p_filter[0].is_empty()).then(|| Column::V0.eq(p_filter[0])))
-                        .add_option((!p_filter[1].is_empty()).then(|| Column::V1.eq(p_filter[1])))
-                        .add_option((!p_filter[2].is_empty()).then(|| Column::V2.eq(p_filter[2])))
-                        .add_option((!p_filter[3].is_empty()).then(|| Column::V3.eq(p_filter[3])))
-                        .add_option((!p_filter[4].is_empty()).then(|| Column::V4.eq(p_filter[4])))
-                        .add_option((!p_filter[5].is_empty()).then(|| Column::V5.eq(p_filter[5]))),
+                        .add_option((!p_filter.v0.is_empty()).then(|| Column::V0.eq(p_filter.v0)))
+                        .add_option((!p_filter.v1.is_empty()).then(|| Column::V1.eq(p_filter.v1)))
+                        .add_option((!p_filter.v2.is_empty()).then(|| Column::V2.eq(p_filter.v2)))
+                        .add_option((!p_filter.v3.is_empty()).then(|| Column::V3.eq(p_filter.v3)))
+                        .add_option((!p_filter.v4.is_empty()).then(|| Column::V4.eq(p_filter.v4)))
+                        .add_option((!p_filter.v5.is_empty()).then(|| Column::V5.eq(p_filter.v5))),
                 ),
         )
         .all(conn)
@@ -184,34 +191,9 @@ pub(crate) async fn load_filtered_policy<'conn, 'filter, C: ConnectionTrait>(
         .map_err(|err| CasbinError::from(AdapterError(Box::new(err))))
 }
 
-fn filtered_where_values<'a>(filter: &'a Filter<'a>) -> ([&'a str; 6], [&'a str; 6]) {
-    let mut g_filter: [&'a str; 6] = ["", "", "", "", "", ""];
-    let mut p_filter: [&'a str; 6] = ["", "", "", "", "", ""];
-
-    for (idx, ele) in g_filter.iter_mut().enumerate() {
-        match filter.g.get(idx) {
-            Some(a) if !a.is_empty() => {
-                *ele = a;
-            }
-            _ => (),
-        }
-    }
-
-    for (idx, ele) in p_filter.iter_mut().enumerate() {
-        match filter.p.get(idx) {
-            Some(a) if !a.is_empty() => {
-                *ele = a;
-            }
-            _ => (),
-        }
-    }
-
-    (g_filter, p_filter)
-}
-
 pub(crate) async fn save_policy<'conn, 'rule, C: ConnectionTrait>(
     conn: &'conn C,
-    rule: &'rule RuleWithType<'rule>,
+    rule: RuleWithType<'rule>,
 ) -> Result<()> {
     let models = entity::Entity::find()
         .filter(Column::Ptype.eq(rule.ptype))
@@ -250,7 +232,7 @@ pub(crate) async fn save_policy<'conn, 'rule, C: ConnectionTrait>(
 
 pub(crate) async fn save_policies<'conn, 'rule, C: ConnectionTrait>(
     conn: &'conn C,
-    rules: &'rule [RuleWithType<'rule>],
+    rules: Vec<RuleWithType<'rule>>,
 ) -> Result<()> {
     for rule in rules {
         save_policy(conn, rule).await?;
@@ -261,7 +243,7 @@ pub(crate) async fn save_policies<'conn, 'rule, C: ConnectionTrait>(
 
 pub(crate) async fn add_policy<'conn, 'rule, C: ConnectionTrait>(
     conn: &'conn C,
-    rule: &'rule RuleWithType<'rule>,
+    rule: RuleWithType<'rule>,
 ) -> Result<()> {
     let model = entity::ActiveModel {
         id: NotSet,
@@ -284,7 +266,7 @@ pub(crate) async fn add_policy<'conn, 'rule, C: ConnectionTrait>(
 
 pub(crate) async fn add_policies<'conn, 'rule, C: ConnectionTrait>(
     conn: &'conn C,
-    rules: &'rule [RuleWithType<'rule>],
+    rules: Vec<RuleWithType<'rule>>,
 ) -> Result<()> {
     for rule in rules {
         add_policy(conn, rule).await?;

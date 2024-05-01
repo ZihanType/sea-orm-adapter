@@ -28,37 +28,7 @@ impl<C: ConnectionTrait> SeaOrmAdapter<C> {
             return None;
         }
 
-        let mut rule_with_type = RuleWithType {
-            ptype,
-            v0: "",
-            v1: "",
-            v2: "",
-            v3: "",
-            v4: "",
-            v5: "",
-        };
-
-        #[allow(clippy::get_first)]
-        if let Some(v) = rule.get(0) {
-            rule_with_type.v0 = v;
-        }
-        if let Some(v) = rule.get(1) {
-            rule_with_type.v1 = v;
-        }
-        if let Some(v) = rule.get(2) {
-            rule_with_type.v2 = v;
-        }
-        if let Some(v) = rule.get(3) {
-            rule_with_type.v3 = v;
-        }
-        if let Some(v) = rule.get(4) {
-            rule_with_type.v4 = v;
-        }
-        if let Some(v) = rule.get(5) {
-            rule_with_type.v5 = v;
-        }
-
-        Some(rule_with_type)
+        Some(RuleWithType::from_rule(ptype, Rule::from_string(rule)))
     }
 
     fn load_policy_line(model: &entity::Model) -> Option<Vec<String>> {
@@ -138,7 +108,7 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
     }
 
     async fn save_policy(&mut self, m: &mut dyn Model) -> Result<()> {
-        let mut rules = vec![];
+        let mut rules = Vec::new();
 
         if let Some(ast_map) = m.get_model().get("p") {
             for (ptype, ast) in ast_map {
@@ -161,7 +131,8 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
                 rules.extend(new_rules);
             }
         }
-        action::save_policies(&self.conn, &rules).await
+
+        action::save_policies(&self.conn, rules).await
     }
 
     async fn clear_policy(&mut self) -> Result<()> {
@@ -177,7 +148,7 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
             return Ok(false);
         };
 
-        action::add_policy(&self.conn, &rule_with_type)
+        action::add_policy(&self.conn, rule_with_type)
             .await
             .map(|_| true)
     }
@@ -193,11 +164,11 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
             .filter_map(|x| Self::save_policy_line(ptype, x))
             .collect::<Vec<_>>();
 
-        action::add_policies(&self.conn, &rules).await.map(|_| true)
+        action::add_policies(&self.conn, rules).await.map(|_| true)
     }
 
     async fn remove_policy(&mut self, _sec: &str, ptype: &str, rule: Vec<String>) -> Result<bool> {
-        action::remove_policy(&self.conn, ptype, &Rule::from(rule.as_ref())).await
+        action::remove_policy(&self.conn, ptype, Rule::from_string(&rule)).await
     }
 
     async fn remove_policies(
@@ -208,9 +179,10 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
     ) -> Result<bool> {
         let rules = rules
             .iter()
-            .map(|r| Rule::from(r.as_ref()))
+            .map(|r| Rule::from_string(r))
             .collect::<Vec<_>>();
-        action::remove_policies(&self.conn, ptype, &rules).await
+
+        action::remove_policies(&self.conn, ptype, rules).await
     }
 
     async fn remove_filtered_policy(
@@ -223,20 +195,8 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
         if field_index <= 5 && !field_values.is_empty() && field_values.len() >= 6 - field_index {
             Ok(false)
         } else {
-            let field_values = if field_values.len() < 6 {
-                let mut temp = field_values.clone();
-                temp.resize(6, String::new());
-                temp
-            } else {
-                field_values
-            };
-
-            let rule: [String; 6] = field_values.try_into().unwrap();
-            let mut new_rule: [&str; 6] = Default::default();
-            for (i, r) in rule.iter().enumerate() {
-                new_rule[i] = r;
-            }
-            action::remove_filtered_policy(&self.conn, ptype, field_index, &new_rule).await
+            let rule = Rule::from_string(&field_values);
+            action::remove_filtered_policy(&self.conn, ptype, field_index, rule).await
         }
     }
 }
