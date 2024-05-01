@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.4] 2024-05-02
+
+- fix: consistent with the behavior of functions in `sqlx-adapter` crate.
+
 ## [0.3.3] 2024-04-24
 
 - Fix issue caused by `casbin` breaking semantic version specification.
