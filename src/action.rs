@@ -2,7 +2,7 @@ use casbin::{error::AdapterError, Error as CasbinError, Filter, Result};
 use sea_orm::{
     ActiveModelTrait,
     ActiveValue::{NotSet, Set},
-    ColumnTrait, Condition, ConnectionTrait, EntityTrait, QueryFilter,
+    ColumnTrait, Condition, ConnectionTrait, EntityTrait, QueryFilter, QuerySelect,
 };
 
 use crate::entity::{self, Column, Entity};
@@ -194,8 +194,10 @@ pub(crate) async fn load_filtered_policy<'conn, 'filter, C: ConnectionTrait>(
 pub(crate) async fn save_policy<'conn, 'rule, C: ConnectionTrait>(
     conn: &'conn C,
     rule: RuleWithType<'rule>,
-) -> Result<()> {
-    let models = entity::Entity::find()
+) -> Result<i32> {
+    let id: Option<i32> = entity::Entity::find()
+        .select_only()
+        .column(Column::Id)
         .filter(Column::Ptype.eq(rule.ptype))
         .filter(Column::V0.eq(rule.v0))
         .filter(Column::V1.eq(rule.v1))
@@ -203,12 +205,13 @@ pub(crate) async fn save_policy<'conn, 'rule, C: ConnectionTrait>(
         .filter(Column::V3.eq(rule.v3))
         .filter(Column::V4.eq(rule.v4))
         .filter(Column::V5.eq(rule.v5))
-        .all(conn)
+        .into_tuple()
+        .one(conn)
         .await
         .map_err(|err| CasbinError::from(AdapterError(Box::new(err))))?;
 
-    if !models.is_empty() {
-        return Ok(());
+    if let Some(id) = id {
+        return Ok(id);
     }
 
     let model = entity::ActiveModel {
@@ -222,21 +225,29 @@ pub(crate) async fn save_policy<'conn, 'rule, C: ConnectionTrait>(
         v5: Set(rule.v5.to_string()),
     };
 
-    model
-        .insert(conn)
+    let insert_result = entity::Entity::insert(model)
+        .exec(conn)
         .await
         .map_err(|err| CasbinError::from(AdapterError(Box::new(err))))?;
 
-    Ok(())
+    Ok(insert_result.last_insert_id)
 }
 
 pub(crate) async fn save_policies<'conn, 'rule, C: ConnectionTrait>(
     conn: &'conn C,
     rules: Vec<RuleWithType<'rule>>,
 ) -> Result<()> {
+    let mut ids = Vec::with_capacity(rules.len());
+
     for rule in rules {
-        save_policy(conn, rule).await?;
+        ids.push(save_policy(conn, rule).await?);
     }
+
+    entity::Entity::delete_many()
+        .filter(Condition::all().add_option((!ids.is_empty()).then(|| Column::Id.is_not_in(ids))))
+        .exec(conn)
+        .await
+        .map_err(|err| CasbinError::from(AdapterError(Box::new(err))))?;
 
     Ok(())
 }

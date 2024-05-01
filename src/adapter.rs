@@ -192,11 +192,11 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
         field_index: usize,
         field_values: Vec<String>,
     ) -> Result<bool> {
-        if field_index <= 5 && !field_values.is_empty() && field_values.len() >= 6 - field_index {
-            Ok(false)
-        } else {
+        if field_index <= 5 && !field_values.is_empty() && field_values.len() + field_index <= 6 {
             let rule = Rule::from_string(&field_values);
             action::remove_filtered_policy(&self.conn, ptype, field_index, rule).await
+        } else {
+            Ok(false)
         }
     }
 }
@@ -414,6 +414,7 @@ mod tests {
             .await
             .unwrap());
 
+        // GitHub issue: https://github.com/casbin-rs/sqlx-adapter/issues/64
         assert!(adapter
             .add_policy("", "g", to_owned(vec!["carol", "data1_admin"]),)
             .await
@@ -423,6 +424,57 @@ mod tests {
             .await
             .unwrap());
         assert_eq!(Vec::<String>::new(), e.get_roles_for_user("carol", None));
+
+        // GitHub issue: https://github.com/casbin-rs/sqlx-adapter/pull/90
+        // add policies:
+        // p, alice_rfp, book_rfp, read_rfp
+        // p, bob_rfp, book_rfp, read_rfp
+        // p, bob_rfp, book_rfp, write_rfp
+        // p, alice_rfp, pen_rfp, get_rfp
+        // p, bob_rfp, pen_rfp, get_rfp
+        // p, alice_rfp, pencil_rfp, get_rfp
+        assert!(adapter
+            .add_policy("", "p", to_owned(vec!["alice_rfp", "book_rfp", "read_rfp"]),)
+            .await
+            .is_ok());
+        assert!(adapter
+            .add_policy("", "p", to_owned(vec!["bob_rfp", "book_rfp", "read_rfp"]),)
+            .await
+            .is_ok());
+        assert!(adapter
+            .add_policy("", "p", to_owned(vec!["bob_rfp", "book_rfp", "write_rfp"]),)
+            .await
+            .is_ok());
+        assert!(adapter
+            .add_policy("", "p", to_owned(vec!["alice_rfp", "pen_rfp", "get_rfp"]),)
+            .await
+            .is_ok());
+        assert!(adapter
+            .add_policy("", "p", to_owned(vec!["bob_rfp", "pen_rfp", "get_rfp"]),)
+            .await
+            .is_ok());
+        assert!(adapter
+            .add_policy(
+                "",
+                "p",
+                to_owned(vec!["alice_rfp", "pencil_rfp", "get_rfp"]),
+            )
+            .await
+            .is_ok());
+
+        // should remove (return true) all policies where "book_rfp" is in the second
+        // position
+        assert!(adapter
+            .remove_filtered_policy("", "p", 1, to_owned(vec!["book_rfp"]),)
+            .await
+            .unwrap());
+
+        // should remove (return true) all policies which match "alice_rfp" on first
+        // position and "get_rfp" on third position
+        assert!(adapter
+            .remove_filtered_policy("", "p", 0, to_owned(vec!["alice_rfp", "", "get_rfp"]),)
+            .await
+            .unwrap());
 
         // shadow the previous enforcer
         let mut e = Enforcer::new(
