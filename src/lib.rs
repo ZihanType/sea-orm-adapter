@@ -3,7 +3,6 @@
 mod action;
 mod adapter;
 pub mod entity;
-mod ext;
 mod migration;
 
 pub use adapter::SeaOrmAdapter;

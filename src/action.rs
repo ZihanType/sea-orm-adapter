@@ -5,10 +5,7 @@ use sea_orm::{
     ColumnTrait, Condition, ConnectionTrait, EntityTrait, QueryFilter,
 };
 
-use crate::{
-    entity::{self, Column, Entity},
-    ext::{ConditionExt, QueryFilterExt},
-};
+use crate::entity::{self, Column, Entity};
 
 #[derive(Debug, Default)]
 pub(crate) struct Rule<'a> {
@@ -101,43 +98,45 @@ pub(crate) async fn remove_filtered_policy<'conn, 'rule, C: ConnectionTrait>(
     index_of_match_start: usize,
     rule: &'rule [&'rule str; 6],
 ) -> Result<bool> {
-    let mut stmt = Entity::delete_many().filter(Column::Ptype.eq(ptype));
+    let mut conditions = Condition::all().add(Column::Ptype.eq(ptype));
 
     if index_of_match_start == 0 {
-        stmt = stmt
-            .filter_maybe(!rule[0].is_empty(), Column::V0.eq(rule[0]))
-            .filter_maybe(!rule[1].is_empty(), Column::V1.eq(rule[1]))
-            .filter_maybe(!rule[2].is_empty(), Column::V2.eq(rule[2]))
-            .filter_maybe(!rule[3].is_empty(), Column::V3.eq(rule[3]))
-            .filter_maybe(!rule[4].is_empty(), Column::V4.eq(rule[4]))
-            .filter_maybe(!rule[5].is_empty(), Column::V5.eq(rule[5]));
+        conditions = conditions
+            .add_option((!rule[0].is_empty()).then(|| Column::V0.eq(rule[0])))
+            .add_option((!rule[1].is_empty()).then(|| Column::V1.eq(rule[1])))
+            .add_option((!rule[2].is_empty()).then(|| Column::V2.eq(rule[2])))
+            .add_option((!rule[3].is_empty()).then(|| Column::V3.eq(rule[3])))
+            .add_option((!rule[4].is_empty()).then(|| Column::V4.eq(rule[4])))
+            .add_option((!rule[5].is_empty()).then(|| Column::V5.eq(rule[5])));
     } else if index_of_match_start == 1 {
-        stmt = stmt
-            .filter_maybe(!rule[0].is_empty(), Column::V1.eq(rule[0]))
-            .filter_maybe(!rule[1].is_empty(), Column::V2.eq(rule[1]))
-            .filter_maybe(!rule[2].is_empty(), Column::V3.eq(rule[2]))
-            .filter_maybe(!rule[3].is_empty(), Column::V4.eq(rule[3]))
-            .filter_maybe(!rule[4].is_empty(), Column::V5.eq(rule[4]));
+        conditions = conditions
+            .add_option((!rule[0].is_empty()).then(|| Column::V1.eq(rule[0])))
+            .add_option((!rule[1].is_empty()).then(|| Column::V2.eq(rule[1])))
+            .add_option((!rule[2].is_empty()).then(|| Column::V3.eq(rule[2])))
+            .add_option((!rule[3].is_empty()).then(|| Column::V4.eq(rule[3])))
+            .add_option((!rule[4].is_empty()).then(|| Column::V5.eq(rule[4])));
     } else if index_of_match_start == 2 {
-        stmt = stmt
-            .filter_maybe(!rule[0].is_empty(), Column::V2.eq(rule[0]))
-            .filter_maybe(!rule[1].is_empty(), Column::V3.eq(rule[1]))
-            .filter_maybe(!rule[2].is_empty(), Column::V4.eq(rule[2]))
-            .filter_maybe(!rule[3].is_empty(), Column::V5.eq(rule[3]));
+        conditions = conditions
+            .add_option((!rule[0].is_empty()).then(|| Column::V2.eq(rule[0])))
+            .add_option((!rule[1].is_empty()).then(|| Column::V3.eq(rule[1])))
+            .add_option((!rule[2].is_empty()).then(|| Column::V4.eq(rule[2])))
+            .add_option((!rule[3].is_empty()).then(|| Column::V5.eq(rule[3])));
     } else if index_of_match_start == 3 {
-        stmt = stmt
-            .filter_maybe(!rule[0].is_empty(), Column::V3.eq(rule[0]))
-            .filter_maybe(!rule[1].is_empty(), Column::V4.eq(rule[1]))
-            .filter_maybe(!rule[2].is_empty(), Column::V5.eq(rule[2]));
+        conditions = conditions
+            .add_option((!rule[0].is_empty()).then(|| Column::V3.eq(rule[0])))
+            .add_option((!rule[1].is_empty()).then(|| Column::V4.eq(rule[1])))
+            .add_option((!rule[2].is_empty()).then(|| Column::V5.eq(rule[2])));
     } else if index_of_match_start == 4 {
-        stmt = stmt
-            .filter_maybe(!rule[0].is_empty(), Column::V4.eq(rule[0]))
-            .filter_maybe(!rule[1].is_empty(), Column::V5.eq(rule[1]));
+        conditions = conditions
+            .add_option((!rule[0].is_empty()).then(|| Column::V4.eq(rule[0])))
+            .add_option((!rule[1].is_empty()).then(|| Column::V5.eq(rule[1])));
     } else {
-        stmt = stmt.filter_maybe(!rule[0].is_empty(), Column::V5.eq(rule[0]));
+        conditions = conditions.add_option((!rule[0].is_empty()).then(|| Column::V5.eq(rule[0])));
     }
 
-    stmt.exec(conn)
+    Entity::delete_many()
+        .filter(conditions)
+        .exec(conn)
         .await
         .map(|count| count.rows_affected >= 1)
         .map_err(|err| CasbinError::from(AdapterError(Box::new(err))))
@@ -162,22 +161,22 @@ pub(crate) async fn load_filtered_policy<'conn, 'filter, C: ConnectionTrait>(
                 .add(
                     Condition::all()
                         .add(Column::Ptype.starts_with("g"))
-                        .add_maybe(!g_filter[0].is_empty(), Column::V0.eq(g_filter[0]))
-                        .add_maybe(!g_filter[1].is_empty(), Column::V1.eq(g_filter[1]))
-                        .add_maybe(!g_filter[2].is_empty(), Column::V2.eq(g_filter[2]))
-                        .add_maybe(!g_filter[3].is_empty(), Column::V3.eq(g_filter[3]))
-                        .add_maybe(!g_filter[4].is_empty(), Column::V4.eq(g_filter[4]))
-                        .add_maybe(!g_filter[5].is_empty(), Column::V5.eq(g_filter[5])),
+                        .add_option((!g_filter[0].is_empty()).then(|| Column::V0.eq(g_filter[0])))
+                        .add_option((!g_filter[1].is_empty()).then(|| Column::V1.eq(g_filter[1])))
+                        .add_option((!g_filter[2].is_empty()).then(|| Column::V2.eq(g_filter[2])))
+                        .add_option((!g_filter[3].is_empty()).then(|| Column::V3.eq(g_filter[3])))
+                        .add_option((!g_filter[4].is_empty()).then(|| Column::V4.eq(g_filter[4])))
+                        .add_option((!g_filter[5].is_empty()).then(|| Column::V5.eq(g_filter[5]))),
                 )
                 .add(
                     Condition::all()
                         .add(Column::Ptype.starts_with("p"))
-                        .add_maybe(!p_filter[0].is_empty(), Column::V0.eq(p_filter[0]))
-                        .add_maybe(!p_filter[1].is_empty(), Column::V1.eq(p_filter[1]))
-                        .add_maybe(!p_filter[2].is_empty(), Column::V2.eq(p_filter[2]))
-                        .add_maybe(!p_filter[3].is_empty(), Column::V3.eq(p_filter[3]))
-                        .add_maybe(!p_filter[4].is_empty(), Column::V4.eq(p_filter[4]))
-                        .add_maybe(!p_filter[5].is_empty(), Column::V5.eq(p_filter[5])),
+                        .add_option((!p_filter[0].is_empty()).then(|| Column::V0.eq(p_filter[0])))
+                        .add_option((!p_filter[1].is_empty()).then(|| Column::V1.eq(p_filter[1])))
+                        .add_option((!p_filter[2].is_empty()).then(|| Column::V2.eq(p_filter[2])))
+                        .add_option((!p_filter[3].is_empty()).then(|| Column::V3.eq(p_filter[3])))
+                        .add_option((!p_filter[4].is_empty()).then(|| Column::V4.eq(p_filter[4])))
+                        .add_option((!p_filter[5].is_empty()).then(|| Column::V5.eq(p_filter[5]))),
                 ),
         )
         .all(conn)
