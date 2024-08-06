@@ -5,6 +5,7 @@
 - breaking: change primary key type from `i32` to `i64`.
 - breaking: change the `ptype` field type from `varchar(12)` to `varchar(18)`.
 - chore: simplify the code.
+- dep: update `sea-orm` to `1`.
 
 ## [0.3.4] 2024-05-02
 
