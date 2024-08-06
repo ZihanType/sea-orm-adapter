@@ -14,16 +14,18 @@ pub struct SeaOrmAdapter<C> {
 
 impl<C: ConnectionTrait> SeaOrmAdapter<C> {
     pub async fn new(conn: C) -> Result<Self> {
-        migration::up(&conn)
-            .await
-            .map(|_| Self {
+        match migration::up(&conn).await {
+            Ok(_) => Ok(Self {
                 conn,
                 is_filtered: false,
-            })
-            .map_err(|err| CasbinError::from(AdapterError(Box::new(err))))
+            }),
+            Err(err) => Err(CasbinError::from(AdapterError(Box::new(err)))),
+        }
     }
+}
 
-    fn save_policy_line<'a>(ptype: &'a str, rule: &'a [String]) -> Option<RuleWithType<'a>> {
+impl<C> SeaOrmAdapter<C> {
+    fn transform_policy_line<'a>(ptype: &'a str, rule: &'a [String]) -> Option<RuleWithType<'a>> {
         if ptype.trim().is_empty() || rule.is_empty() {
             return None;
         }
@@ -31,32 +33,25 @@ impl<C: ConnectionTrait> SeaOrmAdapter<C> {
         Some(RuleWithType::from_rule(ptype, Rule::from_string(rule)))
     }
 
-    fn load_policy_line(model: &entity::Model) -> Option<Vec<String>> {
-        if model.ptype.chars().next().is_some() {
-            return Self::normalize_policy(model);
-        }
-
-        None
-    }
-
     fn normalize_policy(model: &entity::Model) -> Option<Vec<String>> {
-        let mut result = vec![
+        let mut policy = vec![
             &model.v0, &model.v1, &model.v2, &model.v3, &model.v4, &model.v5,
         ];
 
-        while let Some(last) = result.last() {
-            if last.is_empty() {
-                result.pop();
-            } else {
-                break;
+        loop {
+            match policy.last() {
+                Some(last) if last.is_empty() => {
+                    policy.pop();
+                }
+                _ => break,
             }
         }
 
-        if !result.is_empty() {
-            return Some(result.iter().map(|&x| x.to_owned()).collect());
+        if policy.is_empty() {
+            None
+        } else {
+            Some(policy.iter().map(|&x| x.to_owned()).collect())
         }
-
-        None
     }
 }
 
@@ -75,17 +70,17 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
             let Some(t2) = t1.get_mut(&rule.ptype) else {
                 continue;
             };
-            let Some(line) = Self::load_policy_line(rule) else {
+            let Some(policy) = Self::normalize_policy(rule) else {
                 continue;
             };
-            t2.get_mut_policy().insert(line);
+            t2.get_mut_policy().insert(policy);
         }
 
         Ok(())
     }
 
     async fn load_filtered_policy<'a>(&mut self, m: &mut dyn Model, f: Filter<'a>) -> Result<()> {
-        let rules = action::load_filtered_policy(&self.conn, &f).await?;
+        let rules = action::load_filtered_policy(&self.conn, f).await?;
         self.is_filtered = true;
 
         for rule in &rules {
@@ -110,23 +105,23 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
     async fn save_policy(&mut self, m: &mut dyn Model) -> Result<()> {
         let mut rules = Vec::new();
 
-        if let Some(ast_map) = m.get_model().get("p") {
-            for (ptype, ast) in ast_map {
-                let new_rules = ast
+        if let Some(map) = m.get_model().get("p") {
+            for (ptype, assertion) in map {
+                let new_rules = assertion
                     .get_policy()
                     .into_iter()
-                    .filter_map(|x| Self::save_policy_line(ptype, x));
+                    .filter_map(|x| Self::transform_policy_line(ptype, x));
 
                 rules.extend(new_rules);
             }
         }
 
-        if let Some(ast_map) = m.get_model().get("g") {
-            for (ptype, ast) in ast_map {
-                let new_rules = ast
+        if let Some(map) = m.get_model().get("g") {
+            for (ptype, assertion) in map {
+                let new_rules = assertion
                     .get_policy()
                     .into_iter()
-                    .filter_map(|x| Self::save_policy_line(ptype, x));
+                    .filter_map(|x| Self::transform_policy_line(ptype, x));
 
                 rules.extend(new_rules);
             }
@@ -144,13 +139,11 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
     }
 
     async fn add_policy(&mut self, _sec: &str, ptype: &str, rule: Vec<String>) -> Result<bool> {
-        let Some(rule_with_type) = Self::save_policy_line(ptype, rule.as_slice()) else {
+        let Some(rule_with_type) = Self::transform_policy_line(ptype, rule.as_slice()) else {
             return Ok(false);
         };
 
-        action::add_policy(&self.conn, rule_with_type)
-            .await
-            .map(|_| true)
+        action::add_policy(&self.conn, rule_with_type).await
     }
 
     async fn add_policies(
@@ -161,14 +154,22 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
     ) -> Result<bool> {
         let rules = rules
             .iter()
-            .filter_map(|x| Self::save_policy_line(ptype, x))
+            .filter_map(|x| Self::transform_policy_line(ptype, x))
             .collect::<Vec<_>>();
 
-        action::add_policies(&self.conn, rules).await.map(|_| true)
+        if rules.is_empty() {
+            return Ok(false);
+        }
+
+        action::add_policies(&self.conn, rules).await
     }
 
     async fn remove_policy(&mut self, _sec: &str, ptype: &str, rule: Vec<String>) -> Result<bool> {
-        action::remove_policy(&self.conn, ptype, Rule::from_string(&rule)).await
+        let Some(rule_with_type) = Self::transform_policy_line(ptype, rule.as_slice()) else {
+            return Ok(false);
+        };
+
+        action::remove_policy(&self.conn, rule_with_type).await
     }
 
     async fn remove_policies(
@@ -179,10 +180,14 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
     ) -> Result<bool> {
         let rules = rules
             .iter()
-            .map(|r| Rule::from_string(r))
+            .filter_map(|x| Self::transform_policy_line(ptype, x))
             .collect::<Vec<_>>();
 
-        action::remove_policies(&self.conn, ptype, rules).await
+        if rules.is_empty() {
+            return Ok(false);
+        }
+
+        action::remove_policies(&self.conn, rules).await
     }
 
     async fn remove_filtered_policy(
@@ -243,7 +248,7 @@ mod tests {
         let db_url = {
             #[cfg(feature = "postgres")]
             {
-                "postgres://casbin_rs:casbin_rs@localhost:5432/casbin"
+                "postgres://root:123456@localhost:5432/casbin"
             }
 
             #[cfg(feature = "mysql")]
@@ -462,15 +467,14 @@ mod tests {
             .await
             .is_ok());
 
-        // should remove (return true) all policies where "book_rfp" is in the second
-        // position
+        // should remove (return true) all policies where "book_rfp" is in the second position
         assert!(adapter
             .remove_filtered_policy("", "p", 1, to_owned(vec!["book_rfp"]),)
             .await
             .unwrap());
 
-        // should remove (return true) all policies which match "alice_rfp" on first
-        // position and "get_rfp" on third position
+        // should remove (return true) all policies which match "alice_rfp" on first position
+        // and "get_rfp" on third position
         assert!(adapter
             .remove_filtered_policy("", "p", 0, to_owned(vec!["alice_rfp", "", "get_rfp"]),)
             .await

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.0] 2024-08-06
+
+- breaking: change primary key type from `i32` to `i64`.
+- breaking: change the `ptype` field type from `varchar(12)` to `varchar(18)`.
+- chore: simplify the code.
+
 ## [0.3.4] 2024-05-02
 
 - fix: consistent with the behavior of functions in `sqlx-adapter` crate.

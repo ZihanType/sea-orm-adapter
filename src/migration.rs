@@ -22,12 +22,14 @@ pub async fn up<C: ConnectionTrait>(conn: &C) -> Result<ExecResult, DbErr> {
         .table(CasbinRule::Table)
         .col(
             ColumnDef::new(CasbinRule::Id)
-                .integer()
+                .big_integer()
                 .not_null()
                 .auto_increment()
                 .primary_key(),
         )
-        .col(ColumnDef::new(CasbinRule::Ptype).string_len(12).not_null())
+        // MySQL max key length is `3072` bytes, in `utf8mb4` charset, it's `3072 / 4 = 768` characters
+        // 18 + 125 * 6 = 768
+        .col(ColumnDef::new(CasbinRule::Ptype).string_len(18).not_null())
         .col(ColumnDef::new(CasbinRule::V0).string_len(125).not_null())
         .col(ColumnDef::new(CasbinRule::V1).string_len(125).not_null())
         .col(ColumnDef::new(CasbinRule::V2).string_len(125).not_null())
